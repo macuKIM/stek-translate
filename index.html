@@ -274,9 +274,7 @@ select:focus{border-color:var(--accent)}
 
 <div class="toast" id="toast"></div>
 
-<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js" crossorigin="anonymous"></script>
-<script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/util.js" crossorigin="anonymous"></script>
-<script>window.FFmpegWASM=window.FFmpegWASM||FFmpeg;window.FFmpegUtil=window.FFmpegUtil||{fetchFile:async function(f){if(f instanceof File){return new Uint8Array(await f.arrayBuffer())}const r=await fetch(f);return new Uint8Array(await r.arrayBuffer())}}</script>
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js" crossorigin="anonymous"></script>
 <script>
 let GROQ_KEY=localStorage.getItem('groq_key')||'';
 if(!GROQ_KEY){GROQ_KEY=prompt('Groq API Key를 입력하세요:');if(GROQ_KEY)localStorage.setItem('groq_key',GROQ_KEY)}
@@ -547,14 +545,13 @@ let burnedVideoURL='';
 async function loadFFmpeg(){
 if(ffmpegLoaded)return;
 const{FFmpeg}=FFmpegWASM;
-const{fetchFile}=FFmpegUtil;
 ffmpegInstance=new FFmpeg();
 ffmpegInstance.on('progress',({progress})=>{
 const pct=Math.round(progress*100);
 document.getElementById('burnProgressDetail').textContent=`처리 중... ${pct}%`});
 await ffmpegInstance.load({
-coreURL:'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
-wasmURL:'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm'});
+coreURL:'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
+wasmURL:'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm'});
 ffmpegLoaded=true}
 
 function srtToAss(srtText){
@@ -591,10 +588,8 @@ document.getElementById('burnProgressText').textContent='FFmpeg 로딩 중...';
 
 try{
 await loadFFmpeg();
-const{fetchFile}=FFmpegUtil;
-
 document.getElementById('burnProgressText').textContent='영상 파일 읽는 중...';
-const videoData=await fetchFile(genFile);
+const videoData=new Uint8Array(await genFile.arrayBuffer());
 await ffmpegInstance.writeFile('input.mp4',videoData);
 
 document.getElementById('burnProgressText').textContent='자막 파일 준비 중...';
