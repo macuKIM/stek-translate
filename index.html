@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>STEK Translate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0a0a;--surface:#141414;--surface2:#1c1c1c;--surface3:#242424;--border:#2a2a2a;--border-hover:#3d3d3d;--text:#fff;--text-muted:#9a9a9a;--text-dim:#5a5a5a;--accent:#c8a44e;--accent-hover:#d4b05a;--accent-soft:rgba(200,164,78,0.12);--success:#4ade80;--error:#ef4444}
+body{font-family:'Plus Jakarta Sans','Noto Sans KR',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;line-height:1.5}
+.bg-grain{position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse at top,rgba(200,164,78,0.04),transparent 60%)}
+.ct{position:relative;z-index:1;max-width:880px;margin:0 auto;padding:56px 24px 100px}
+.header{text-align:center;margin-bottom:56px}
+.brand{display:inline-flex;align-items:center;gap:10px;margin-bottom:12px}
+.brand-logo{font-size:28px;font-weight:800;letter-spacing:-0.025em;background:linear-gradient(135deg,#fff 0%,#c8a44e 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.brand-tag{font-size:10px;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:4px 9px;border-radius:6px;letter-spacing:0.08em;text-transform:uppercase}
+.subtitle{font-size:15px;color:var(--text-muted)}
+.subtitle strong{color:var(--text);font-weight:600}
+.step{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:14px;transition:border-color 0.2s}
+.step:hover{border-color:var(--border-hover)}
+.step-head{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.step-num{width:26px;height:26px;border-radius:8px;background:var(--accent-soft);color:var(--accent);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace}
+.step-title{font-size:15px;font-weight:600}
+.step-hint{font-size:12px;color:var(--text-dim);margin-left:auto;font-weight:500}
+.upload-zone{border:1.5px dashed var(--border);border-radius:12px;padding:36px 20px;text-align:center;cursor:pointer;transition:all 0.2s;display:block}
+.upload-zone:hover{border-color:var(--accent);background:rgba(200,164,78,0.03)}
+.upload-zone.has-file{padding:12px 16px;border-style:solid;text-align:left}
+.upload-icon{width:44px;height:44px;border-radius:12px;background:var(--surface2);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;color:var(--text-muted);font-size:20px}
+.upload-text{font-size:14px;color:var(--text-muted)}
+.upload-text strong{color:var(--text);font-weight:600}
+.upload-text small{display:block;margin-top:4px;font-size:12px;color:var(--text-dim)}
+.file-info{display:flex;align-items:center;gap:12px}
+.file-icon{width:40px;height:40px;background:var(--accent-soft);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--accent);font-family:'JetBrains Mono',monospace}
+.file-name{font-size:14px;font-weight:600}
+.file-size{font-size:12px;color:var(--text-dim)}
+.file-remove{margin-left:auto;color:var(--text-dim);cursor:pointer;font-size:18px;padding:4px 8px;border-radius:6px}
+.file-remove:hover{color:var(--error);background:rgba(239,68,68,0.1)}
+select{width:100%;padding:13px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-family:inherit;outline:none;appearance:none;cursor:pointer;background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%239a9a9a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center;padding-right:42px;transition:border-color 0.15s}
+select:hover{border-color:var(--border-hover)}
+select:focus{border-color:var(--accent)}
+.chip-row{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:999px;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.15s;user-select:none;color:var(--text-muted)}
+.chip:hover{border-color:var(--border-hover);color:var(--text)}
+.chip.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+.chip-check{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--text-dim);display:flex;align-items:center;justify-content:center;font-size:10px}
+.chip.active .chip-check{background:var(--accent);border-color:var(--accent);color:#0a0a0a}
+.chip-all{margin-bottom:8px}
+.btn-primary{width:100%;padding:18px;background:var(--accent);color:#0a0a0a;border:none;border-radius:14px;font-size:15px;font-weight:700;font-family:inherit;cursor:pointer;letter-spacing:0.01em;transition:all 0.15s;margin-top:24px;display:flex;align-items:center;justify-content:center;gap:10px}
+.btn-primary:hover{background:var(--accent-hover);transform:translateY(-1px)}
+.btn-primary:active{transform:translateY(0)}
+.btn-primary:disabled{background:#2a2a2a;color:#666;cursor:not-allowed;transform:none}
+.progress{display:none;text-align:center;padding:40px 20px;margin-top:24px;background:var(--surface);border:1px solid var(--border);border-radius:16px}
+.progress.active{display:block}
+.spinner{width:32px;height:32px;border:2.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;margin:0 auto 14px;animation:spin 0.8s linear infinite}
+.progress-text{font-size:14px;color:var(--text-muted);font-weight:500}
+.progress-detail{font-size:12px;color:var(--text-dim);margin-top:4px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.output-section{margin-top:40px;display:none}
+.output-section.active{display:block}
+.output-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:0 4px}
+.output-title{font-size:18px;font-weight:700}
+.output-count{font-size:13px;color:var(--text-muted)}
+.btn-download-all{padding:8px 14px;background:var(--accent-soft);color:var(--accent);border:1px solid transparent;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn-download-all:hover{background:rgba(200,164,78,0.2)}
+.output-grid{display:grid;gap:10px}
+.output-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;transition:border-color 0.2s}
+.output-card:hover{border-color:var(--border-hover)}
+.output-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.output-lang{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600}
+.lang-code{font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-soft);padding:3px 7px;border-radius:5px;font-family:'JetBrains Mono',monospace;letter-spacing:0.05em}
+.btn-download{padding:7px 12px;background:var(--accent);color:#0a0a0a;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px}
+.btn-download:hover{background:var(--accent-hover)}
+.output-text{background:var(--surface2);padding:14px 16px;border-radius:10px;font-size:13px;line-height:1.7;white-space:pre-wrap;font-family:'JetBrains Mono','Noto Sans KR',monospace;max-height:200px;overflow-y:auto;color:var(--text)}
+.output-text::-webkit-scrollbar{width:6px}
+.output-text::-webkit-scrollbar-track{background:transparent}
+.output-text::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--border);text-align:center;font-size:12px;color:var(--text-dim)}
+.footer strong{color:var(--text-muted)}
+.toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface3);border:1px solid var(--border);color:var(--text);padding:12px 20px;border-radius:10px;font-size:13px;font-weight:500;opacity:0;transition:all 0.3s;z-index:100}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.toast.success{border-color:var(--success);color:var(--success)}
+.toast.error{border-color:var(--error);color:var(--error)}
+.or-divider{text-align:center;color:var(--text-dim);font-size:12px;margin:12px 0;font-weight:500}
+.srt-upload{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;cursor:pointer}
+.srt-upload:hover{border-color:var(--border-hover)}
+.srt-icon{width:36px;height:36px;background:var(--surface3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--accent);font-family:'JetBrains Mono',monospace}
+.srt-upload-text{font-size:13px;color:var(--text-muted)}
+.srt-upload-text strong{color:var(--text);font-weight:600}
+@media(max-width:640px){.ct{padding:32px 16px 60px}.step{padding:20px}.brand-logo{font-size:24px}}
+</style>
+</head>
+<body>
+<div class="bg-grain"></div>
+<div class="ct">
+
+<header class="header">
+<div class="brand">
+<div class="brand-logo">STEK Translate</div>
+<span class="brand-tag">AI</span>
+</div>
+<p class="subtitle">영상 하나로 <strong>10개 언어 자막 자동 생성</strong> · 85개국 즉시 배포</p>
+</header>
+
+<!-- STEP 1 -->
+<section class="step">
+<div class="step-head">
+<div class="step-num">1</div>
+<div class="step-title">영상 또는 SRT 업로드</div>
+</div>
+<label class="upload-zone" id="dropZone">
+<input type="file" id="fileInput" accept="video/*,audio/*,.srt" hidden>
+<div id="uploadEmpty">
+<div class="upload-icon">↑</div>
+<div class="upload-text">
+<strong>영상/오디오 파일을 드래그</strong>하거나 클릭
+<small>MP4 · MOV · MP3 · WAV · SRT 지원</small>
+</div>
+</div>
+<div id="fileLoaded" style="display:none">
+<div class="file-info">
+<div class="file-icon" id="fileIcon">MP4</div>
+<div>
+<div class="file-name" id="fileName"></div>
+<div class="file-size" id="fileSize"></div>
+</div>
+<span class="file-remove" id="fileRemove">✕</span>
+</div>
+</div>
+</label>
+<div style="margin-top:12px">
+<select id="sourceLang">
+<option value="en">원본 언어: English · 영어</option>
+<option value="es">원본 언어: Español · 스페인어</option>
+<option value="ru">원본 언어: Русский · 러시아어</option>
+<option value="ar">원본 언어: العربية · 아랍어</option>
+<option value="ko">원본 언어: 한국어</option>
+<option value="ja">원본 언어: 日本語 · 일본어</option>
+<option value="th">원본 언어: ภาษาไทย · 태국어</option>
+<option value="vi">원본 언어: Tiếng Việt · 베트남어</option>
+<option value="fr">원본 언어: Français · 프랑스어</option>
+<option value="zh">원본 언어: 中文 · 중국어</option>
+</select>
+</div>
+</section>
+
+<!-- STEP 2 -->
+<section class="step">
+<div class="step-head">
+<div class="step-num">2</div>
+<div class="step-title">번역 언어 선택</div>
+<div class="step-hint" id="targetCount">0개 선택</div>
+</div>
+<div class="chip-all">
+<span class="chip" id="selectAll"><span class="chip-check">✓</span>전체 선택</span>
+</div>
+<div class="chip-row" id="targetChips"></div>
+</section>
+
+<button class="btn-primary" id="goBtn" disabled>
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+자막 추출 + 번역 시작
+</button>
+
+<div class="progress" id="progress">
+<div class="spinner"></div>
+<div class="progress-text" id="progressText">처리 중...</div>
+<div class="progress-detail" id="progressDetail"></div>
+</div>
+
+<section class="output-section" id="output">
+<div class="output-header">
+<div><div class="output-title">번역 완료</div><div class="output-count" id="outputCount"></div></div>
+<button class="btn-download-all" id="downloadAll">전체 다운로드</button>
+</div>
+<div class="output-grid" id="outputGrid"></div>
+</section>
+
+<!-- SUBTITLE GENERATOR -->
+<section class="step" style="margin-top:56px;border-color:var(--accent);border-style:solid">
+<div class="step-head">
+<div class="step-num" style="background:var(--accent);color:#0a0a0a">+</div>
+<div class="step-title">자막 없는 영상? AI가 만들어드립니다</div>
+</div>
+<p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">자막이 없는 영상을 업로드하면 AI가 음성을 분석하여 자막(SRT)을 자동 생성합니다.</p>
+<label class="upload-zone" id="genDropZone">
+<input type="file" id="genFileInput" accept="video/*,audio/*" hidden>
+<div id="genUploadEmpty">
+<div class="upload-icon">♪</div>
+<div class="upload-text">
+<strong>영상/오디오 파일을 드래그</strong>하거나 클릭
+<small>음성이 포함된 MP4 · MOV · MP3 · WAV</small>
+</div>
+</div>
+<div id="genFileLoaded" style="display:none">
+<div class="file-info">
+<div class="file-icon" id="genFileIcon">MP4</div>
+<div>
+<div class="file-name" id="genFileName"></div>
+<div class="file-size" id="genFileSize"></div>
+</div>
+<span class="file-remove" id="genFileRemove">✕</span>
+</div>
+</div>
+</label>
+<div style="margin-top:12px">
+<select id="genLang">
+<option value="en">영상 언어: English · 영어</option>
+<option value="es">영상 언어: Español · 스페인어</option>
+<option value="ru">영상 언어: Русский · 러시아어</option>
+<option value="ar">영상 언어: العربية · 아랍어</option>
+<option value="ko">영상 언어: 한국어</option>
+<option value="ja">영상 언어: 日本語 · 일본어</option>
+<option value="th">영상 언어: ภาษาไทย · 태국어</option>
+<option value="vi">영상 언어: Tiếng Việt · 베트남어</option>
+<option value="fr">영상 언어: Français · 프랑스어</option>
+<option value="zh">영상 언어: 中文 · 중국어</option>
+</select>
+</div>
+<div style="margin-top:8px">
+<select id="genTargetLang">
+<option value="">추출 언어: 원본 그대로</option>
+<option value="en">추출 언어: English · 영어</option>
+<option value="es">추출 언어: Español · 스페인어</option>
+<option value="ru">추출 언어: Русский · 러시아어</option>
+<option value="ar">추출 언어: العربية · 아랍어</option>
+<option value="ko">추출 언어: 한국어</option>
+<option value="ja">추출 언어: 日本語 · 일본어</option>
+<option value="th">추출 언어: ภาษาไทย · 태국어</option>
+<option value="vi">추출 언어: Tiếng Việt · 베트남어</option>
+<option value="fr">추출 언어: Français · 프랑스어</option>
+<option value="zh">추출 언어: 中文 · 중국어</option>
+</select>
+</div>
+<button class="btn-primary" id="genBtn" disabled style="margin-top:16px;background:var(--text);color:var(--bg)">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M12 2v20M2 12h20"/></svg>
+자막 생성
+</button>
+<div class="progress" id="genProgress" style="margin-top:16px">
+<div class="spinner"></div>
+<div class="progress-text" id="genProgressText">AI가 음성을 분석하고 있습니다...</div>
+<div class="progress-detail">Whisper AI 처리 중 (30초~1분 소요)</div>
+</div>
+<div id="genResult" style="display:none;margin-top:16px">
+<div class="output-card" style="margin:0">
+<div class="output-card-head">
+<div class="output-lang"><span class="lang-code" id="genResultCode">EN</span><span id="genResultLabel">자동 생성된 자막</span></div>
+<div style="display:flex;gap:6px">
+<button class="btn-download" onclick="dlGenSrt()">SRT</button>
+<button class="btn-download" id="burnBtn" onclick="burnSubtitles()" style="background:var(--text);color:var(--bg)">자막 입힌 영상 만들기</button>
+</div>
+</div>
+<div class="output-text" id="genResultText"></div>
+</div>
+<div class="progress" id="burnProgress" style="margin-top:12px">
+<div class="spinner"></div>
+<div class="progress-text" id="burnProgressText">영상에 자막을 입히는 중...</div>
+<div class="progress-detail" id="burnProgressDetail">FFmpeg 처리 중 (1~3분 소요)</div>
+</div>
+<div id="burnResult" style="display:none;margin-top:12px">
+<video id="burnPreview" controls style="width:100%;border-radius:10px;background:#000"></video>
+<button class="btn-primary" onclick="dlBurnedVideo()" style="margin-top:10px;background:var(--success);color:#0a0a0a">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+자막 입힌 영상 다운로드
+</button>
+</div>
+</div>
+</section>
+
+<footer class="footer"><strong>STEK Translate</strong> · AI 자막 추출 + 다국어 번역 시스템<br>Powered by Groq Whisper + MyMemory · Made for 85 countries</footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/util.js" crossorigin="anonymous"></script>
+<script>window.FFmpegWASM=window.FFmpegWASM||FFmpeg;window.FFmpegUtil=window.FFmpegUtil||{fetchFile:async function(f){if(f instanceof File){return new Uint8Array(await f.arrayBuffer())}const r=await fetch(f);return new Uint8Array(await r.arrayBuffer())}}</script>
+<script>
+let GROQ_KEY=localStorage.getItem('groq_key')||'';
+if(!GROQ_KEY){GROQ_KEY=prompt('Groq API Key를 입력하세요:');if(GROQ_KEY)localStorage.setItem('groq_key',GROQ_KEY)}
+const LANGS={en:'English · 영어',es:'Español · 스페인어',ru:'Русский · 러시아어',ar:'العربية · 아랍어',ko:'한국어',ja:'日本語 · 일본어',th:'ภาษาไทย · 태국어',vi:'Tiếng Việt · 베트남어',fr:'Français · 프랑스어',zh:'中文 · 중국어'};
+const selected=new Set();
+let uploadedFile=null;
+let srtContent='';
+let isSRT=false;
+
+const chipRow=document.getElementById('targetChips');
+Object.entries(LANGS).forEach(([code,name])=>{
+const c=document.createElement('span');c.className='chip';c.dataset.code=code;
+c.innerHTML=`<span class="chip-check">✓</span>${name}`;
+c.onclick=()=>toggleLang(code);chipRow.appendChild(c)});
+
+function toggleLang(code){
+const c=document.querySelector(`.chip[data-code="${code}"]`);
+if(selected.has(code)){selected.delete(code);c.classList.remove('active')}
+else{selected.add(code);c.classList.add('active')}
+updateUI()}
+
+document.getElementById('selectAll').onclick=()=>{
+const src=document.getElementById('sourceLang').value;
+const all=Object.keys(LANGS).filter(c=>c!==src);
+if(selected.size===all.length){selected.clear();document.querySelectorAll('.chip[data-code]').forEach(c=>c.classList.remove('active'))}
+else{selected.clear();all.forEach(c=>selected.add(c));document.querySelectorAll('.chip[data-code]').forEach(c=>c.classList.toggle('active',selected.has(c.dataset.code)))}
+updateUI()};
+
+document.getElementById('sourceLang').onchange=()=>{
+const src=document.getElementById('sourceLang').value;
+if(selected.has(src)){selected.delete(src);document.querySelector(`.chip[data-code="${src}"]`).classList.remove('active')}
+updateUI()};
+
+function updateUI(){
+document.getElementById('targetCount').textContent=`${selected.size}개 선택`;
+document.getElementById('goBtn').disabled=selected.size===0||!uploadedFile}
+
+// File upload
+const dropZone=document.getElementById('dropZone');
+const fileInput=document.getElementById('fileInput');
+dropZone.addEventListener('click',e=>{if(e.target.id!=='fileRemove')fileInput.click()});
+fileInput.addEventListener('change',e=>handleFile(e.target.files[0]));
+['dragenter','dragover'].forEach(ev=>dropZone.addEventListener(ev,e=>{e.preventDefault();dropZone.style.borderColor='var(--accent)'}));
+['dragleave','drop'].forEach(ev=>dropZone.addEventListener(ev,e=>{e.preventDefault();dropZone.style.borderColor='';if(ev==='drop'&&e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0])}));
+
+function handleFile(file){
+if(!file)return;
+uploadedFile=file;
+const ext=file.name.split('.').pop().toUpperCase();
+isSRT=ext==='SRT';
+if(isSRT){file.text().then(t=>{srtContent=t})}
+document.getElementById('fileIcon').textContent=ext;
+document.getElementById('fileName').textContent=file.name;
+document.getElementById('fileSize').textContent=(file.size/1024/1024).toFixed(1)+' MB';
+document.getElementById('uploadEmpty').style.display='none';
+document.getElementById('fileLoaded').style.display='block';
+dropZone.classList.add('has-file');
+updateUI()}
+
+document.getElementById('fileRemove').onclick=e=>{
+e.stopPropagation();
+uploadedFile=null;srtContent='';isSRT=false;
+document.getElementById('uploadEmpty').style.display='block';
+document.getElementById('fileLoaded').style.display='none';
+dropZone.classList.remove('has-file');
+fileInput.value='';
+updateUI()};
+
+// Whisper transcription via Groq
+async function transcribe(file,lang){
+const formData=new FormData();
+formData.append('file',file);
+formData.append('model','whisper-large-v3');
+formData.append('language',lang);
+formData.append('response_format','verbose_json');
+formData.append('timestamp_granularities[]','segment');
+const res=await fetch('https://api.groq.com/openai/v1/audio/transcriptions',{
+method:'POST',
+headers:{'Authorization':'Bearer '+GROQ_KEY},
+body:formData});
+if(!res.ok){const err=await res.text();throw new Error(err)}
+const data=await res.json();
+return segmentsToSRT(data.segments||[])}
+
+function segmentsToSRT(segments){
+return segments.map((s,i)=>{
+const start=formatTime(s.start);
+const end=formatTime(s.end);
+return`${i+1}\n${start} --> ${end}\n${s.text.trim()}`}).join('\n\n')}
+
+function formatTime(sec){
+const h=Math.floor(sec/3600);
+const m=Math.floor((sec%3600)/60);
+const s=Math.floor(sec%60);
+const ms=Math.round((sec%1)*1000);
+return`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')},${String(ms).padStart(3,'0')}`}
+
+// SRT parse/build
+function parseSRT(text){
+return text.trim().split(/\n\s*\n/).map(b=>{
+const l=b.split('\n');if(l.length<3)return null;
+return{index:l[0],time:l[1],text:l.slice(2).join('\n')}}).filter(Boolean)}
+
+function buildSRT(blocks){return blocks.map(b=>`${b.index}\n${b.time}\n${b.text}`).join('\n\n')}
+
+// Translation
+async function translateLine(text,from,to){
+if(!text.trim())return text;
+const url=`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${from}|${to}`;
+try{const r=await fetch(url);const d=await r.json();return d.responseData?.translatedText||text}catch{return text}}
+
+async function translateLines(lines,from,to){
+const out=[];for(const l of lines){out.push(await translateLine(l,from,to))}return out}
+
+// Main action
+document.getElementById('goBtn').onclick=async()=>{
+const source=document.getElementById('sourceLang').value;
+const targets=Array.from(selected);
+document.getElementById('goBtn').disabled=true;
+document.getElementById('progress').classList.add('active');
+document.getElementById('output').classList.remove('active');
+document.getElementById('outputGrid').innerHTML='';
+
+let srt='';
+try{
+if(isSRT){
+document.getElementById('progressText').textContent='SRT 파일 읽는 중...';
+srt=srtContent;
+}else{
+document.getElementById('progressText').textContent='AI가 음성을 분석하고 있습니다...';
+document.getElementById('progressDetail').textContent='Whisper AI 자막 추출 중 (30초~1분 소요)';
+srt=await transcribe(uploadedFile,source);
+}
+
+// Show original SRT
+renderOutput('original_'+source,srt,true,'원본 자막 ('+LANGS[source]+')');
+
+const blocks=parseSRT(srt);
+const results={};
+let done=0;
+
+for(const target of targets){
+document.getElementById('progressText').textContent=`${LANGS[target]} 번역 중...`;
+document.getElementById('progressDetail').textContent=`${done}/${targets.length} 완료`;
+
+const translated=[];
+for(const block of blocks){
+const lines=block.text.split('\n');
+const tl=await translateLines(lines,source,target);
+translated.push({...block,text:tl.join('\n')})}
+
+const result=buildSRT(translated);
+results[target]=result;
+done++;
+renderOutput(target,result,true,LANGS[target])}
+
+document.getElementById('progress').classList.remove('active');
+document.getElementById('output').classList.add('active');
+document.getElementById('outputCount').textContent=`${done}개 언어 · SRT 형식`;
+window.translationResults=results;
+showToast(`${done}개 언어 번역 완료`,'success');
+
+}catch(e){
+document.getElementById('progress').classList.remove('active');
+showToast('오류: '+e.message,'error');
+}
+document.getElementById('goBtn').disabled=false};
+
+function renderOutput(code,text,isSRT,label){
+const isOrig=code.startsWith('original_');
+const displayCode=isOrig?code.split('_')[1]:code;
+const card=document.createElement('div');card.className='output-card';
+card.innerHTML=`<div class="output-card-head"><div class="output-lang"><span class="lang-code">${displayCode.toUpperCase()}</span>${label||LANGS[code]}</div><button class="btn-download" onclick="dlFile('${code}')">SRT 다운로드</button></div><div class="output-text">${escapeHtml(text)}</div>`;
+document.getElementById('outputGrid').appendChild(card);
+if(!window.translationResults)window.translationResults={};
+window.translationResults[code]=text}
+
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+window.dlFile=function(code){
+const text=window.translationResults[code];if(!text)return;
+const blob=new Blob([text],{type:'text/plain;charset=utf-8'});
+const url=URL.createObjectURL(blob);const a=document.createElement('a');
+a.href=url;a.download=`subtitle_${code}.srt`;a.click();URL.revokeObjectURL(url)};
+
+document.getElementById('downloadAll').onclick=()=>{
+const r=window.translationResults;if(!r)return;
+Object.entries(r).forEach(([code,text],i)=>{
+setTimeout(()=>{const blob=new Blob([text],{type:'text/plain;charset=utf-8'});
+const url=URL.createObjectURL(blob);const a=document.createElement('a');
+a.href=url;a.download=`subtitle_${code}.srt`;a.click();URL.revokeObjectURL(url)},i*200)});
+showToast('파일들을 다운로드합니다','success')};
+
+function showToast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+type;setTimeout(()=>t.classList.remove('show'),2800)}
+
+// === SUBTITLE GENERATOR ===
+let genFile=null;
+let genSrtResult='';
+const genDropZone=document.getElementById('genDropZone');
+const genFileInput=document.getElementById('genFileInput');
+
+genDropZone.addEventListener('click',e=>{if(e.target.id!=='genFileRemove')genFileInput.click()});
+genFileInput.addEventListener('change',e=>handleGenFile(e.target.files[0]));
+['dragenter','dragover'].forEach(ev=>genDropZone.addEventListener(ev,e=>{e.preventDefault();genDropZone.style.borderColor='var(--accent)'}));
+['dragleave','drop'].forEach(ev=>genDropZone.addEventListener(ev,e=>{e.preventDefault();genDropZone.style.borderColor='';if(ev==='drop'&&e.dataTransfer.files[0])handleGenFile(e.dataTransfer.files[0])}));
+
+function handleGenFile(file){
+if(!file)return;
+genFile=file;
+const ext=file.name.split('.').pop().toUpperCase();
+document.getElementById('genFileIcon').textContent=ext;
+document.getElementById('genFileName').textContent=file.name;
+document.getElementById('genFileSize').textContent=(file.size/1024/1024).toFixed(1)+' MB';
+document.getElementById('genUploadEmpty').style.display='none';
+document.getElementById('genFileLoaded').style.display='block';
+genDropZone.classList.add('has-file');
+document.getElementById('genBtn').disabled=false}
+
+document.getElementById('genFileRemove').onclick=e=>{
+e.stopPropagation();
+genFile=null;genSrtResult='';
+document.getElementById('genUploadEmpty').style.display='block';
+document.getElementById('genFileLoaded').style.display='none';
+genDropZone.classList.remove('has-file');
+genFileInput.value='';
+document.getElementById('genBtn').disabled=true;
+document.getElementById('genResult').style.display='none'};
+
+document.getElementById('genBtn').onclick=async()=>{
+if(!genFile)return;
+const lang=document.getElementById('genLang').value;
+document.getElementById('genBtn').disabled=true;
+document.getElementById('genProgress').classList.add('active');
+document.getElementById('genResult').style.display='none';
+
+try{
+const srt=await transcribe(genFile,lang);
+const targetLang=document.getElementById('genTargetLang').value;
+let finalSrt=srt;
+let finalLang=lang;
+if(targetLang&&targetLang!==lang){
+document.getElementById('genProgressText').textContent=LANGS[targetLang]+' 번역 중...';
+const blocks=parseSRT(srt);
+const translated=[];
+for(const block of blocks){
+const lines=block.text.split('\n');
+const tl=await translateLines(lines,lang,targetLang);
+translated.push({...block,text:tl.join('\n')})}
+finalSrt=buildSRT(translated);
+finalLang=targetLang}
+genSrtResult=finalSrt;
+document.getElementById('genResultCode').textContent=finalLang.toUpperCase();
+document.getElementById('genResultLabel').textContent='자동 생성된 자막 ('+(LANGS[finalLang]||finalLang)+')';
+document.getElementById('genResultText').textContent=finalSrt;
+document.getElementById('genResult').style.display='block';
+showToast('자막 생성 완료'+(targetLang?' + 번역 완료':''),'success');
+}catch(e){
+showToast('오류: '+e.message,'error');
+}
+document.getElementById('genProgress').classList.remove('active');
+document.getElementById('genBtn').disabled=false};
+
+// === FFmpeg Subtitle Burn-in ===
+let ffmpegLoaded=false;
+let ffmpegInstance=null;
+let burnedVideoURL='';
+
+async function loadFFmpeg(){
+if(ffmpegLoaded)return;
+const{FFmpeg}=FFmpegWASM;
+const{fetchFile}=FFmpegUtil;
+ffmpegInstance=new FFmpeg();
+ffmpegInstance.on('progress',({progress})=>{
+const pct=Math.round(progress*100);
+document.getElementById('burnProgressDetail').textContent=`처리 중... ${pct}%`});
+await ffmpegInstance.load({
+coreURL:'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
+wasmURL:'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm'});
+ffmpegLoaded=true}
+
+function srtToAss(srtText){
+const blocks=parseSRT(srtText);
+let ass=`[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Noto Sans KR,56,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,3,1,2,30,30,40,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+`;
+blocks.forEach(b=>{
+const start=srtTimeToAss(b.time.split(' --> ')[0]);
+const end=srtTimeToAss(b.time.split(' --> ')[1]);
+const text=b.text.replace(/\n/g,'\\N');
+ass+=`Dialogue: 0,${start},${end},Default,,0,0,0,,${text}\n`});
+return ass}
+
+function srtTimeToAss(t){
+return t.trim().replace(',','.').replace(/^(\d{2}):(\d{2}):(\d{2})\.(\d{3})$/,
+(m,h,mi,s,ms)=>`${h}:${mi}:${s}.${ms.substring(0,2)}`)}
+
+window.burnSubtitles=async function(){
+if(!genFile||!genSrtResult)return;
+document.getElementById('burnBtn').disabled=true;
+document.getElementById('burnProgress').classList.add('active');
+document.getElementById('burnResult').style.display='none';
+document.getElementById('burnProgressText').textContent='FFmpeg 로딩 중...';
+
+try{
+await loadFFmpeg();
+const{fetchFile}=FFmpegUtil;
+
+document.getElementById('burnProgressText').textContent='영상 파일 읽는 중...';
+const videoData=await fetchFile(genFile);
+await ffmpegInstance.writeFile('input.mp4',videoData);
+
+document.getElementById('burnProgressText').textContent='자막 파일 준비 중...';
+const assContent=srtToAss(genSrtResult);
+const encoder=new TextEncoder();
+await ffmpegInstance.writeFile('subs.ass',encoder.encode(assContent));
+
+document.getElementById('burnProgressText').textContent='영상에 자막을 입히는 중...';
+await ffmpegInstance.exec([
+'-i','input.mp4',
+'-vf','ass=subs.ass',
+'-c:a','copy',
+'-preset','ultrafast',
+'output.mp4']);
+
+document.getElementById('burnProgressText').textContent='완료! 영상 준비 중...';
+const outputData=await ffmpegInstance.readFile('output.mp4');
+const blob=new Blob([outputData],{type:'video/mp4'});
+if(burnedVideoURL)URL.revokeObjectURL(burnedVideoURL);
+burnedVideoURL=URL.createObjectURL(blob);
+
+document.getElementById('burnPreview').src=burnedVideoURL;
+document.getElementById('burnResult').style.display='block';
+showToast('자막 입힌 영상 완성','success');
+
+await ffmpegInstance.deleteFile('input.mp4');
+await ffmpegInstance.deleteFile('subs.ass');
+await ffmpegInstance.deleteFile('output.mp4');
+}catch(e){
+showToast('영상 처리 오류: '+e.message,'error');
+}
+document.getElementById('burnProgress').classList.remove('active');
+document.getElementById('burnBtn').disabled=false};
+
+window.dlBurnedVideo=function(){
+if(!burnedVideoURL)return;
+const a=document.createElement('a');
+a.href=burnedVideoURL;
+a.download='stek_subtitled_video.mp4';
+a.click()};
+
+window.dlGenSrt=function(){
+if(!genSrtResult)return;
+const lang=document.getElementById('genLang').value;
+const blob=new Blob([genSrtResult],{type:'text/plain;charset=utf-8'});
+const url=URL.createObjectURL(blob);const a=document.createElement('a');
+a.href=url;a.download=`subtitle_generated_${lang}.srt`;a.click();URL.revokeObjectURL(url)};
+
+updateUI();
+</script>
+</body>
+</html>
