@@ -274,6 +274,9 @@ select:focus{border-color:var(--accent)}
 
 <div class="toast" id="toast"></div>
 
+<script>
+{const O=Worker;window.Worker=class extends O{constructor(u,o){if(typeof u==='string'&&u.startsWith('http')){const b=new Blob([`importScripts("${u}")`],{type:'text/javascript'});super(URL.createObjectURL(b),o)}else{super(u,o)}}}}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js" crossorigin="anonymous"></script>
 <script>
 let GROQ_KEY=localStorage.getItem('groq_key')||'';
