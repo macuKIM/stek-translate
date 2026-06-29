@@ -89,6 +89,13 @@ select:focus{border-color:var(--accent)}
 .srt-icon{width:36px;height:36px;background:var(--surface3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--accent);font-family:'JetBrains Mono',monospace}
 .srt-upload-text{font-size:13px;color:var(--text-muted)}
 .srt-upload-text strong{color:var(--text);font-weight:600}
+.btn-burn{padding:7px 12px;background:var(--surface3);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:all 0.15s}
+.btn-burn:hover{border-color:var(--accent);color:var(--accent)}
+.btn-burn:disabled{opacity:0.4;cursor:not-allowed}
+.cover-toggle{display:flex;align-items:center;gap:8px;margin-top:12px;padding:10px 14px;background:var(--surface2);border-radius:10px;cursor:pointer;user-select:none}
+.cover-toggle input{accent-color:var(--accent);width:16px;height:16px;cursor:pointer}
+.cover-toggle label{font-size:13px;color:var(--text-muted);cursor:pointer}
+.cover-toggle label strong{color:var(--text);font-weight:600}
 @media(max-width:640px){.ct{padding:32px 16px 60px}.step{padding:20px}.brand-logo{font-size:24px}}
 </style>
 </head>
@@ -175,7 +182,23 @@ select:focus{border-color:var(--accent)}
 <div><div class="output-title">번역 완료</div><div class="output-count" id="outputCount"></div></div>
 <button class="btn-download-all" id="downloadAll">전체 다운로드</button>
 </div>
+<div class="cover-toggle">
+<input type="checkbox" id="coverExisting" checked>
+<label for="coverExisting"><strong>기존 자막 덮기</strong> — 영상 하단에 검정 배경을 깔아 기존 자막을 가립니다</label>
+</div>
 <div class="output-grid" id="outputGrid"></div>
+<div class="progress" id="topBurnProgress" style="margin-top:12px">
+<div class="spinner"></div>
+<div class="progress-text" id="topBurnProgressText">영상에 자막을 입히는 중...</div>
+<div class="progress-detail" id="topBurnProgressDetail">FFmpeg 처리 중 (1~3분 소요)</div>
+</div>
+<div id="topBurnResult" style="display:none;margin-top:12px">
+<video id="topBurnPreview" controls style="width:100%;border-radius:10px;background:#000"></video>
+<button class="btn-primary" onclick="dlTopBurnedVideo()" style="margin-top:10px;background:var(--success);color:#0a0a0a">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+자막 입힌 영상 다운로드
+</button>
+</div>
 </section>
 
 <!-- SUBTITLE GENERATOR -->
@@ -450,7 +473,9 @@ function renderOutput(code,text,isSRT,label){
 const isOrig=code.startsWith('original_');
 const displayCode=isOrig?code.split('_')[1]:code;
 const card=document.createElement('div');card.className='output-card';
-card.innerHTML=`<div class="output-card-head"><div class="output-lang"><span class="lang-code">${displayCode.toUpperCase()}</span>${label||LANGS[code]}</div><button class="btn-download" onclick="dlFile('${code}')">SRT 다운로드</button></div><div class="output-text">${escapeHtml(text)}</div>`;
+const hasVideo=uploadedFile&&!isSRT&&uploadedFile.type.startsWith('video');
+const burnBtn=hasVideo?`<button class="btn-burn" onclick="burnTopSubtitles('${code}')">▶ 영상에 입히기</button>`:'';
+card.innerHTML=`<div class="output-card-head"><div class="output-lang"><span class="lang-code">${displayCode.toUpperCase()}</span>${label||LANGS[code]}</div><div style="display:flex;gap:6px">${burnBtn}<button class="btn-download" onclick="dlFile('${code}')">SRT 다운로드</button></div></div><div class="output-text">${escapeHtml(text)}</div>`;
 document.getElementById('outputGrid').appendChild(card);
 if(!window.translationResults)window.translationResults={};
 window.translationResults[code]=text}
@@ -582,57 +607,88 @@ function srtTimeToAss(t){
 return t.trim().replace(',','.').replace(/^(\d{2}):(\d{2}):(\d{2})\.(\d{3})$/,
 (m,h,mi,s,ms)=>`${h}:${mi}:${s}.${ms.substring(0,2)}`)}
 
-window.burnSubtitles=async function(){
-if(!genFile||!genSrtResult)return;
-document.getElementById('burnBtn').disabled=true;
-document.getElementById('burnProgress').classList.add('active');
-document.getElementById('burnResult').style.display='none';
-document.getElementById('burnProgressText').textContent='FFmpeg 로딩 중...';
+async function doBurn(videoFile,srtText,coverExisting,progressTextEl,progressDetailEl,progressEl,resultEl,previewEl,urlStore){
+progressEl.classList.add('active');
+if(resultEl)resultEl.style.display='none';
+progressTextEl.textContent='FFmpeg 로딩 중...';
 
-try{
+const origOnProgress=ffmpegInstance?ffmpegInstance.on:null;
 await loadFFmpeg();
-document.getElementById('burnProgressText').textContent='영상 파일 읽는 중...';
-const videoData=new Uint8Array(await genFile.arrayBuffer());
+ffmpegInstance.on('progress',({progress})=>{
+const pct=Math.round(progress*100);
+progressDetailEl.textContent=`처리 중... ${pct}%`});
+
+progressTextEl.textContent='영상 파일 읽는 중...';
+const videoData=new Uint8Array(await videoFile.arrayBuffer());
 await ffmpegInstance.writeFile('input.mp4',videoData);
 
-document.getElementById('burnProgressText').textContent='자막 파일 준비 중...';
-const assContent=srtToAss(genSrtResult);
+progressTextEl.textContent='자막 파일 준비 중...';
+const assContent=srtToAss(srtText);
 const encoder=new TextEncoder();
 await ffmpegInstance.writeFile('subs.ass',encoder.encode(assContent));
 
-document.getElementById('burnProgressText').textContent='영상에 자막을 입히는 중...';
-await ffmpegInstance.exec([
-'-i','input.mp4',
-'-vf','ass=subs.ass',
-'-c:a','copy',
-'-preset','ultrafast',
-'output.mp4']);
+progressTextEl.textContent='영상에 자막을 입히는 중...';
+const vf=coverExisting?'drawbox=x=0:y=ih*0.85:w=iw:h=ih*0.15:color=black:t=fill,ass=subs.ass':'ass=subs.ass';
+await ffmpegInstance.exec(['-i','input.mp4','-vf',vf,'-c:a','copy','-preset','ultrafast','output.mp4']);
 
-document.getElementById('burnProgressText').textContent='완료! 영상 준비 중...';
+progressTextEl.textContent='완료! 영상 준비 중...';
 const outputData=await ffmpegInstance.readFile('output.mp4');
 const blob=new Blob([outputData],{type:'video/mp4'});
-if(burnedVideoURL)URL.revokeObjectURL(burnedVideoURL);
-burnedVideoURL=URL.createObjectURL(blob);
+const url=URL.createObjectURL(blob);
 
-document.getElementById('burnPreview').src=burnedVideoURL;
-document.getElementById('burnResult').style.display='block';
-showToast('자막 입힌 영상 완성','success');
+previewEl.src=url;
+if(resultEl)resultEl.style.display='block';
+progressEl.classList.remove('active');
 
 await ffmpegInstance.deleteFile('input.mp4');
 await ffmpegInstance.deleteFile('subs.ass');
 await ffmpegInstance.deleteFile('output.mp4');
+return url}
+
+window.burnSubtitles=async function(){
+if(!genFile||!genSrtResult)return;
+document.getElementById('burnBtn').disabled=true;
+try{
+burnedVideoURL=await doBurn(genFile,genSrtResult,false,
+document.getElementById('burnProgressText'),
+document.getElementById('burnProgressDetail'),
+document.getElementById('burnProgress'),
+document.getElementById('burnResult'),
+document.getElementById('burnPreview'));
+showToast('자막 입힌 영상 완성','success');
 }catch(e){
 showToast('영상 처리 오류: '+e.message,'error');
-}
 document.getElementById('burnProgress').classList.remove('active');
+}
 document.getElementById('burnBtn').disabled=false};
+
+let topBurnedVideoURL='';
+window.burnTopSubtitles=async function(langCode){
+if(!uploadedFile||!window.translationResults||!window.translationResults[langCode])return;
+const srt=window.translationResults[langCode];
+const cover=document.getElementById('coverExisting').checked;
+document.querySelectorAll('.btn-burn').forEach(b=>b.disabled=true);
+try{
+topBurnedVideoURL=await doBurn(uploadedFile,srt,cover,
+document.getElementById('topBurnProgressText'),
+document.getElementById('topBurnProgressDetail'),
+document.getElementById('topBurnProgress'),
+document.getElementById('topBurnResult'),
+document.getElementById('topBurnPreview'));
+showToast('자막 입힌 영상 완성','success');
+}catch(e){
+showToast('영상 처리 오류: '+e.message,'error');
+document.getElementById('topBurnProgress').classList.remove('active');
+}
+document.querySelectorAll('.btn-burn').forEach(b=>b.disabled=false)};
 
 window.dlBurnedVideo=function(){
 if(!burnedVideoURL)return;
-const a=document.createElement('a');
-a.href=burnedVideoURL;
-a.download='stek_subtitled_video.mp4';
-a.click()};
+const a=document.createElement('a');a.href=burnedVideoURL;a.download='stek_subtitled_video.mp4';a.click()};
+
+window.dlTopBurnedVideo=function(){
+if(!topBurnedVideoURL)return;
+const a=document.createElement('a');a.href=topBurnedVideoURL;a.download='stek_translated_video.mp4';a.click()};
 
 window.dlGenSrt=function(){
 if(!genSrtResult)return;
