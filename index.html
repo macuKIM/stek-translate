@@ -473,7 +473,7 @@ function renderOutput(code,text,isSRT,label){
 const isOrig=code.startsWith('original_');
 const displayCode=isOrig?code.split('_')[1]:code;
 const card=document.createElement('div');card.className='output-card';
-const hasVideo=uploadedFile&&!isSRT&&uploadedFile.type.startsWith('video');
+const hasVideo=uploadedFile&&uploadedFile.type&&uploadedFile.type.startsWith('video');
 const burnBtn=hasVideo?`<button class="btn-burn" onclick="burnTopSubtitles('${code}')">▶ 영상에 입히기</button>`:'';
 card.innerHTML=`<div class="output-card-head"><div class="output-lang"><span class="lang-code">${displayCode.toUpperCase()}</span>${label||LANGS[code]}</div><div style="display:flex;gap:6px">${burnBtn}<button class="btn-download" onclick="dlFile('${code}')">SRT 다운로드</button></div></div><div class="output-text">${escapeHtml(text)}</div>`;
 document.getElementById('outputGrid').appendChild(card);
