@@ -110,7 +110,7 @@ select:focus{border-color:var(--accent)}
 <div class="step-num">1</div>
 <div class="step-title">영상 또는 SRT 업로드</div>
 </div>
-<label class="upload-zone" id="dropZone">
+<div class="upload-zone" id="dropZone">
 <input type="file" id="fileInput" accept="video/*,audio/*,.srt" hidden>
 <div id="uploadEmpty">
 <div class="upload-icon">↑</div>
@@ -129,7 +129,7 @@ select:focus{border-color:var(--accent)}
 <span class="file-remove" id="fileRemove">✕</span>
 </div>
 </div>
-</label>
+</div>
 <div style="margin-top:12px">
 <select id="sourceLang">
 <option value="en">원본 언어: English · 영어</option>
@@ -185,7 +185,7 @@ select:focus{border-color:var(--accent)}
 <div class="step-title">자막 없는 영상? AI가 만들어드립니다</div>
 </div>
 <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px">자막이 없는 영상을 업로드하면 AI가 음성을 분석하여 자막(SRT)을 자동 생성합니다.</p>
-<label class="upload-zone" id="genDropZone">
+<div class="upload-zone" id="genDropZone">
 <input type="file" id="genFileInput" accept="video/*,audio/*" hidden>
 <div id="genUploadEmpty">
 <div class="upload-icon">♪</div>
@@ -204,7 +204,7 @@ select:focus{border-color:var(--accent)}
 <span class="file-remove" id="genFileRemove">✕</span>
 </div>
 </div>
-</label>
+</div>
 <div style="margin-top:12px">
 <select id="genLang">
 <option value="en">영상 언어: English · 영어</option>
