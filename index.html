@@ -196,7 +196,7 @@ select:focus{border-color:var(--accent)}
 <div class="progress-detail" id="topBurnProgressDetail">FFmpeg 처리 중 (1~3분 소요)</div>
 </div>
 <div id="topBurnResult" style="display:none;margin-top:12px">
-<video id="topBurnPreview" controls style="width:100%;border-radius:10px;background:#000"></video>
+<video id="topBurnPreview" controls style="width:100%;max-height:480px;object-fit:contain;border-radius:10px;background:#000"></video>
 <button class="btn-primary" onclick="dlTopBurnedVideo()" style="margin-top:10px;background:var(--success);color:#0a0a0a">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
 자막 입힌 영상 다운로드
@@ -286,7 +286,7 @@ select:focus{border-color:var(--accent)}
 <div class="progress-detail" id="burnProgressDetail">FFmpeg 처리 중 (1~3분 소요)</div>
 </div>
 <div id="burnResult" style="display:none;margin-top:12px">
-<video id="burnPreview" controls style="width:100%;border-radius:10px;background:#000"></video>
+<video id="burnPreview" controls style="width:100%;max-height:480px;object-fit:contain;border-radius:10px;background:#000"></video>
 <button class="btn-primary" onclick="dlBurnedVideo()" style="margin-top:10px;background:var(--success);color:#0a0a0a">
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
 자막 입힌 영상 다운로드
