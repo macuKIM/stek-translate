@@ -92,10 +92,10 @@ select:focus{border-color:var(--accent)}
 .btn-burn{padding:7px 12px;background:var(--surface3);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:all 0.15s}
 .btn-burn:hover{border-color:var(--accent);color:var(--accent)}
 .btn-burn:disabled{opacity:0.4;cursor:not-allowed}
-.cover-toggle{display:flex;align-items:center;gap:8px;margin-top:12px;padding:10px 14px;background:var(--surface2);border-radius:10px;cursor:pointer;user-select:none}
-.cover-toggle input{accent-color:var(--accent);width:16px;height:16px;cursor:pointer}
-.cover-toggle label{font-size:13px;color:var(--text-muted);cursor:pointer}
-.cover-toggle label strong{color:var(--text);font-weight:600}
+.sub-pos{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 14px;background:var(--surface2);border-radius:10px}
+.sub-pos span{font-size:13px;color:var(--text-muted);font-weight:500}
+.sub-pos span strong{color:var(--text);font-weight:600}
+.sub-pos select{flex:1;max-width:180px}
 @media(max-width:640px){.ct{padding:32px 16px 60px}.step{padding:20px}.brand-logo{font-size:24px}}
 </style>
 </head>
@@ -182,9 +182,12 @@ select:focus{border-color:var(--accent)}
 <div><div class="output-title">번역 완료</div><div class="output-count" id="outputCount"></div></div>
 <button class="btn-download-all" id="downloadAll">전체 다운로드</button>
 </div>
-<div class="cover-toggle">
-<input type="checkbox" id="coverExisting" checked>
-<label for="coverExisting"><strong>기존 자막 덮기</strong> — 영상 하단에 검정 배경을 깔아 기존 자막을 가립니다</label>
+<div class="sub-pos">
+<span><strong>자막 위치</strong></span>
+<select id="subPosition">
+<option value="top">상단 (기존 하단 자막 피하기)</option>
+<option value="bottom">하단 (기본)</option>
+</select>
 </div>
 <div class="output-grid" id="outputGrid"></div>
 <div class="progress" id="topBurnProgress" style="margin-top:12px">
@@ -585,8 +588,10 @@ await ffmpegInstance.writeFile('Pretendard.otf',fontData)}
 }catch(e){console.warn('Font load failed:',e)}
 ffmpegLoaded=true}
 
-function srtToAss(srtText){
+function srtToAss(srtText,position){
 const blocks=parseSRT(srtText);
+const align=position==='top'?8:2;
+const marginV=position==='top'?30:40;
 let ass=`[Script Info]
 ScriptType: v4.00+
 PlayResX: 1920
@@ -594,7 +599,7 @@ PlayResY: 1080
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Pretendard,56,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,3,1,2,30,30,40,1
+Style: Default,Pretendard,56,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,3,1,${align},30,30,${marginV},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -610,7 +615,7 @@ function srtTimeToAss(t){
 return t.trim().replace(',','.').replace(/^(\d{2}):(\d{2}):(\d{2})\.(\d{3})$/,
 (m,h,mi,s,ms)=>`${h}:${mi}:${s}.${ms.substring(0,2)}`)}
 
-async function doBurn(videoFile,srtText,coverExisting,progressTextEl,progressDetailEl,progressEl,resultEl,previewEl,urlStore){
+async function doBurn(videoFile,srtText,position,progressTextEl,progressDetailEl,progressEl,resultEl,previewEl){
 progressEl.classList.add('active');
 if(resultEl)resultEl.style.display='none';
 progressTextEl.textContent='FFmpeg 로딩 중...';
@@ -626,13 +631,12 @@ const videoData=new Uint8Array(await videoFile.arrayBuffer());
 await ffmpegInstance.writeFile('input.mp4',videoData);
 
 progressTextEl.textContent='자막 파일 준비 중...';
-const assContent=srtToAss(srtText);
+const assContent=srtToAss(srtText,position);
 const encoder=new TextEncoder();
 await ffmpegInstance.writeFile('subs.ass',encoder.encode(assContent));
 
 progressTextEl.textContent='영상에 자막을 입히는 중...';
-const assFilter="ass=subs.ass:fontsdir=.";
-const vf=coverExisting?'drawbox=x=0:y=ih*0.85:w=iw:h=ih*0.15:color=black:t=fill,'+assFilter:assFilter;
+const vf="ass=subs.ass:fontsdir=.";
 await ffmpegInstance.exec(['-i','input.mp4','-vf',vf,'-c:a','copy','-preset','ultrafast','output.mp4']);
 
 progressTextEl.textContent='완료! 영상 준비 중...';
@@ -653,7 +657,7 @@ window.burnSubtitles=async function(){
 if(!genFile||!genSrtResult)return;
 document.getElementById('burnBtn').disabled=true;
 try{
-burnedVideoURL=await doBurn(genFile,genSrtResult,true,
+burnedVideoURL=await doBurn(genFile,genSrtResult,'bottom',
 document.getElementById('burnProgressText'),
 document.getElementById('burnProgressDetail'),
 document.getElementById('burnProgress'),
@@ -670,10 +674,10 @@ let topBurnedVideoURL='';
 window.burnTopSubtitles=async function(langCode){
 if(!uploadedFile||!window.translationResults||!window.translationResults[langCode])return;
 const srt=window.translationResults[langCode];
-const cover=document.getElementById('coverExisting').checked;
+const position=document.getElementById('subPosition').value;
 document.querySelectorAll('.btn-burn').forEach(b=>b.disabled=true);
 try{
-topBurnedVideoURL=await doBurn(uploadedFile,srt,cover,
+topBurnedVideoURL=await doBurn(uploadedFile,srt,position,
 document.getElementById('topBurnProgressText'),
 document.getElementById('topBurnProgressDetail'),
 document.getElementById('topBurnProgress'),
