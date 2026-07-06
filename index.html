@@ -368,9 +368,25 @@ fileInput.value='';
 updateUI()};
 
 // Whisper transcription via Groq
+async function extractAudio(file){
+await loadFFmpeg();
+const buf=new Uint8Array(await file.arrayBuffer());
+const ext=(file.name.match(/\.[0-9a-z]+$/i)||['.mp4'])[0];
+const inName='src_audio'+ext;
+const outName='src_audio.m4a';
+await ffmpegInstance.writeFile(inName,buf);
+await ffmpegInstance.exec(['-i',inName,'-vn','-ac','1','-ar','16000','-b:a','64k',outName]);
+const data=await ffmpegInstance.readFile(outName);
+await ffmpegInstance.deleteFile(inName);
+await ffmpegInstance.deleteFile(outName);
+return new File([data.buffer],'audio.m4a',{type:'audio/mp4'})}
+
 async function transcribe(file,lang){
+let uploadFile=file;
+if(file.type&&file.type.startsWith('video')){
+uploadFile=await extractAudio(file)}
 const formData=new FormData();
-formData.append('file',file);
+formData.append('file',uploadFile);
 formData.append('model','whisper-large-v3');
 formData.append('language',lang);
 formData.append('response_format','verbose_json');
