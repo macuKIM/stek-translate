@@ -302,8 +302,6 @@ select:focus{border-color:var(--accent)}
 
 <script src="ffmpeg.min.js"></script>
 <script>
-let GROQ_KEY=localStorage.getItem('groq_key')||'';
-if(!GROQ_KEY){GROQ_KEY=prompt('Groq API Key를 입력하세요:');if(GROQ_KEY)localStorage.setItem('groq_key',GROQ_KEY)}
 const LANGS={en:'English · 영어',es:'Español · 스페인어',ru:'Русский · 러시아어',ar:'العربية · 아랍어',ko:'한국어',ja:'日本語 · 일본어',th:'ภาษาไทย · 태국어',vi:'Tiếng Việt · 베트남어',fr:'Français · 프랑스어',zh:'中文 · 중국어'};
 const selected=new Set();
 let uploadedFile=null;
@@ -377,9 +375,8 @@ formData.append('model','whisper-large-v3');
 formData.append('language',lang);
 formData.append('response_format','verbose_json');
 formData.append('timestamp_granularities[]','segment');
-const res=await fetch('https://api.groq.com/openai/v1/audio/transcriptions',{
+const res=await fetch('/api/transcribe',{
 method:'POST',
-headers:{'Authorization':'Bearer '+GROQ_KEY},
 body:formData});
 if(!res.ok){const err=await res.text();throw new Error(err)}
 const data=await res.json();
