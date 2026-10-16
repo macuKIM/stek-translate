@@ -95,7 +95,24 @@ select:focus{border-color:var(--accent)}
 .sub-pos{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 14px;background:var(--surface2);border-radius:10px}
 .sub-pos span{font-size:13px;color:var(--text-muted);font-weight:500}
 .sub-pos span strong{color:var(--text);font-weight:600}
-.sub-pos select{flex:1;max-width:180px}
+.sub-pos select{flex:0 1 170px;max-width:180px}
+.rv{display:none;margin-top:12px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px}
+.rv.active{display:block}
+.rv-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.rv-title{font-size:13px;font-weight:600;color:var(--text);line-height:1.5}
+.rv-title b{color:var(--accent)}
+.rv-bulk{display:flex;gap:6px}
+.rv-bulk button{padding:6px 10px;background:var(--surface3);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.rv-bulk button:hover{border-color:var(--accent);color:var(--accent)}
+.rv-list{display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto}
+.rv-row{display:flex;align-items:center;gap:12px;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:10px}
+.rv-thumb{width:104px;height:59px;flex:0 0 104px;border-radius:6px;object-fit:cover;background:#000;border:1px solid var(--border)}
+.rv-meta{flex:1;min-width:0}
+.rv-time{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);font-weight:600}
+.rv-text{font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+.rv-toggle{display:flex;flex:0 0 auto;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.rv-toggle button{padding:8px 13px;background:transparent;border:none;color:var(--text-dim);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .12s}
+.rv-toggle button.on{background:var(--accent);color:#0a0a0a}
 @media(max-width:640px){.ct{padding:32px 16px 60px}.step{padding:20px}.brand-logo{font-size:24px}}
 </style>
 </head>
@@ -183,11 +200,34 @@ select:focus{border-color:var(--accent)}
 <button class="btn-download-all" id="downloadAll">전체 다운로드</button>
 </div>
 <div class="sub-pos">
-<span><strong>자막 위치</strong></span>
+<span><strong>기본 자막 위치</strong></span>
 <select id="subPosition">
-<option value="top">상단 (기존 하단 자막 피하기)</option>
 <option value="bottom">하단 (기본)</option>
+<option value="top">상단</option>
 </select>
+<span><strong>감지 민감도</strong></span>
+<select id="detectSens">
+<option value="mid">보통</option>
+<option value="high">높음 (많이 잡기)</option>
+<option value="low">낮음 (확실한 것만)</option>
+<option value="off">사용 안 함</option>
+</select>
+</div>
+<div class="progress" id="scanProgress" style="margin-top:12px">
+<div class="spinner"></div>
+<div class="progress-text">하단 스티커/이모티콘 구간 분석 중...</div>
+<div class="progress-detail" id="scanDetail">0%</div>
+</div>
+<div class="rv" id="review">
+<div class="rv-head">
+<div class="rv-title">하단이 가려진 것으로 의심되는 구간 <b id="rvCount">0개</b><br>썸네일을 보고 자막을 <b>위 / 아래</b> 중 골라주세요</div>
+<div class="rv-bulk">
+<button type="button" id="rvAllTop">전부 위로</button>
+<button type="button" id="rvAllBottom">전부 아래로</button>
+</div>
+</div>
+<div class="rv-list" id="rvList"></div>
+<button class="btn-primary" id="rvConfirm" style="margin-top:14px">✓ 확정하고 바로 렌더링</button>
 </div>
 <div class="output-grid" id="outputGrid"></div>
 <div class="progress" id="topBurnProgress" style="margin-top:12px">
@@ -601,7 +641,7 @@ await ffmpegInstance.writeFile('Pretendard.otf',fontData)}
 }catch(e){console.warn('Font load failed:',e)}
 ffmpegLoaded=true}
 
-function srtToAss(srtText,position){
+function srtToAss(srtText,position,overrides){
 const blocks=parseSRT(srtText);
 const align=position==='top'?8:2;
 const marginV=position==='top'?30:40;
@@ -617,18 +657,195 @@ Style: Default,Pretendard,56,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 `;
-blocks.forEach(b=>{
-const start=srtTimeToAss(b.time.split(' --> ')[0]);
-const end=srtTimeToAss(b.time.split(' --> ')[1]);
+blocks.forEach((b,idx)=>{
+const parts=b.time.split('-->');
+const start=srtTimeToAss(parts[0]);
+const end=srtTimeToAss(parts[1]||parts[0]);
 const text=b.text.replace(/\n/g,'\\N');
-ass+=`Dialogue: 0,${start},${end},Default,,0,0,0,,${text}\n`});
+const ov=overrides?overrides[idx]:null;
+let tag='',mv=0;
+if(ov&&ov!==position){tag=ov==='top'?'{\\an8}':'{\\an2}';mv=ov==='top'?30:40}
+ass+=`Dialogue: 0,${start},${end},Default,,0,0,${mv},,${tag}${text}\n`});
 return ass}
+
+// === Bottom-overlay (sticker/emoji) detection ===
+// A sticker/emoji pasted over the video is FROZEN (its pixels never change) yet
+// DETAILED (outline/text => high spatial variance), while the footage behind it keeps
+// moving. Flat background areas are frozen but not detailed; letterbox bars and
+// permanent watermarks are frozen for the WHOLE clip and are removed by cropping plus
+// the per-cell duty-cycle checks. A static-background clip has no motion to contrast
+// against, so there a pair of strip-only change spikes marks the sticker instead.
+
+function srtTimeToSec(t){
+const m=String(t).trim().match(/(\d+):(\d+):(\d+)[,.](\d+)/);
+if(!m)return 0;
+return (+m[1])*3600+(+m[2])*60+(+m[3])+(+m[4])/1000}
+
+function fmtT(s){
+const m=Math.floor(s/60),sec=s%60;
+return `${String(m).padStart(2,'0')}:${sec.toFixed(1).padStart(4,'0')}`}
+
+const GX=16,GY=6,NC=GX*GY;  // analysis grid over the bottom strip
+const ODEF={FREEZE:2.2,DETAIL:12,MOVE:1.5,BASE:0.8,LOCAL:0.75,WINS:6,MINRUN:0.8,POP:4,POPR:3,
+           BAR_L:18,BAR_SD:10,MINC:{high:2,mid:3,low:5}};
+function lumaOf(d){const n=d.length>>2,L=new Float32Array(n);for(let i=0,p=0;i<n;i++,p+=4)L[i]=0.299*d[p]+0.587*d[p+1]+0.114*d[p+2];return L}
+function mad(a,b){const n=Math.min(a.length,b.length);if(!n)return 0;let s=0;for(let i=0;i<n;i++)s+=Math.abs(a[i]-b[i]);return s/n}
+function cells(L,P,w,h){
+ const td=new Float32Array(NC),n=new Int32Array(NC),s1=new Float64Array(NC),s2=new Float64Array(NC);
+ for(let y=0;y<h;y++){const gy=Math.min(GY-1,(y*GY/h)|0);
+  for(let x=0;x<w;x++){const c=gy*GX+Math.min(GX-1,(x*GX/w)|0),i=y*w+x,v=L[i];
+   if(P)td[c]+=Math.abs(v-P[i]);n[c]++;s1[c]+=v;s2[c]+=v*v}}
+ const o=new Array(NC);
+ for(let c=0;c<NC;c++){const m=s1[c]/n[c];o[c]={td:td[c]/n[c],sd:Math.sqrt(Math.max(0,s2[c]/n[c]-m*m))}}
+ return o}
+function seekTo(v,t){return new Promise(res=>{let d=false,tm=null;
+ const f=()=>{if(d)return;d=true;v.removeEventListener('seeked',f);clearTimeout(tm);res()};
+ v.addEventListener('seeked',f);tm=setTimeout(f,450);try{v.currentTime=t}catch(e){f()}})}
+
+// Letterbox / pillarbox bars are black and flat in EVERY sampled frame. Crop them off
+// before analysis: otherwise the bar<->content boundary forms a full-width band of
+// cells that look frozen-but-detailed for many seconds and swamp the detector.
+async function contentBox(video,ctx,W,H,dur,C){
+ const rM=new Float32Array(H),rS=new Float32Array(H),cM=new Float32Array(W),cS=new Float32Array(W);
+ for(const f of [0.1,0.3,0.5,0.7,0.9]){
+  await seekTo(video,Math.min(f*dur,Math.max(0,dur-0.05)));
+  let d; try{ctx.drawImage(video,0,0,W,H);d=ctx.getImageData(0,0,W,H).data}catch(e){continue}
+  const L=lumaOf(d);
+  for(let y=0;y<H;y++){let s=0,q=0;
+   for(let x=0;x<W;x++){const v=L[y*W+x];s+=v;q+=v*v}
+   const m=s/W,sd=Math.sqrt(Math.max(0,q/W-m*m));
+   if(m>rM[y])rM[y]=m; if(sd>rS[y])rS[y]=sd}
+  for(let x=0;x<W;x++){let s=0,q=0;
+   for(let y=0;y<H;y++){const v=L[y*W+x];s+=v;q+=v*v}
+   const m=s/H,sd=Math.sqrt(Math.max(0,q/H-m*m));
+   if(m>cM[x])cM[x]=m; if(sd>cS[x])cS[x]=sd}}
+ const bar=(m,sd)=>m<C.BAR_L&&sd<C.BAR_SD;
+ let t=0;      while(t<H-1&&bar(rM[t],rS[t]))t++;
+ let b=H-1;    while(b>t+1&&bar(rM[b],rS[b]))b--;
+ let l=0;      while(l<W-1&&bar(cM[l],cS[l]))l++;
+ let r=W-1;    while(r>l+1&&bar(cM[r],cS[r]))r--;
+ // step inward past the soft (compression-blurred) bar edge
+ const ph=Math.max(2,Math.round((b-t)*0.015)),pw=Math.max(2,Math.round((r-l)*0.015));
+ if(t>0||b<H-1){t=Math.min(b-6,t+ph);b=Math.max(t+6,b-ph)}
+ if(l>0||r<W-1){l=Math.min(r-6,l+pw);r=Math.max(l+6,r-pw)}
+ return{x:l,y:t,w:Math.max(8,r-l+1),h:Math.max(8,b-t+1)}}
+
+async function detectOverlayRanges(file,sens,onProgress,K){
+const C=Object.assign({},ODEF,K||{});
+const video=document.createElement('video');
+video.muted=true;video.playsInline=true;video.preload='auto';
+const url=URL.createObjectURL(file);video.src=url;
+try{
+ await new Promise((res,rej)=>{video.onloadedmetadata=res;
+  video.onerror=()=>rej(new Error('cannot read'));setTimeout(()=>rej(new Error('timeout')),15000)});
+ const dur=video.duration; if(!isFinite(dur)||dur<=0)return[];
+ const vw=video.videoWidth||16,vh=video.videoHeight||9;
+ const W=320,H=Math.max(12,Math.round(W*vh/vw));
+ const cv=document.createElement('canvas');cv.width=W;cv.height=H;
+ const ctx=cv.getContext('2d',{willReadFrequently:true});
+
+ const box=await contentBox(video,ctx,W,H,dur,C);
+ const sx=box.x, sw=box.w;
+ const y0=box.y+Math.round(box.h*0.62), sh=Math.max(6,box.y+box.h-y0);
+ const ry0=box.y+Math.round(box.h*0.05), rsh=Math.max(6,Math.round(box.h*0.45));
+
+ const step=Math.max(0.2,dur/400);
+ const S=[];let pS=null,pR=null;
+ for(let t=0;t<dur;t+=step){
+  await seekTo(video,Math.min(t,Math.max(0,dur-0.05)));
+  try{ctx.drawImage(video,0,0,W,H)}catch(e){continue}
+  let sd,rd; try{sd=ctx.getImageData(sx,y0,sw,sh).data;rd=ctx.getImageData(sx,ry0,sw,rsh).data}catch(e){break}
+  const SL=lumaOf(sd),RL=lumaOf(rd);
+  S.push({t,first:!pS,refD:pR?mad(RL,pR):0,stripD:pS?mad(SL,pS):0,c:cells(SL,pS,sw,sh)});
+  pS=SL;pR=RL;
+  if(onProgress)onProgress(Math.min(1,t/dur))}
+ if(S.length<4)return[];
+
+ const N=S.length;
+ const moving=S.map(s=>!s.first&&s.refD>C.MOVE);
+ const nMov=moving.reduce((a,b)=>a+(b?1:0),0);
+
+ const fd=[];
+ for(let c=0;c<NC;c++){const a=new Uint8Array(N);
+  for(let i=0;i<N;i++){const q=S[i].c[c];
+   a[i]=(!S[i].first&&q.td<C.FREEZE&&q.sd>C.DETAIL)?1:0}
+  fd.push(a)}
+
+ const rate=new Float32Array(NC);
+ if(nMov){for(let c=0;c<NC;c++){let k=0;
+  for(let i=0;i<N;i++)if(moving[i]&&fd[c][i])k++;
+  rate[c]=k/nMov}}
+
+ const runL=[];
+ for(let c=0;c<NC;c++){const a=fd[c],r=new Int32Array(N);let i=0;
+  while(i<N){if(!a[i]){i++;continue}let j=i;while(j<N&&a[j])j++;
+   for(let k=i;k<j;k++)r[k]=j-i;i=j}
+  runL.push(r)}
+ const minRun=Math.max(2,Math.round(C.MINRUN/step));
+
+ const pre=[];
+ for(let c=0;c<NC;c++){const p=new Int32Array(N+1);
+  for(let i=0;i<N;i++)p[i+1]=p[i]+fd[c][i];pre.push(p)}
+ const Wn=Math.max(8,Math.round(C.WINS/step));
+
+ const MINC=C.MINC[sens]!=null?C.MINC[sens]:C.MINC.mid;
+ const flag=new Array(N).fill(false);
+ for(let i=0;i<N;i++){
+  if(!moving[i])continue;
+  const lo=Math.max(0,i-Wn),hi=Math.min(N,i+Wn+1),len=hi-lo;
+  let n=0;
+  for(let c=0;c<NC;c++){
+   if(!fd[c][i])continue;
+   if(runL[c][i]<minRun)continue;
+   if(rate[c]>=C.BASE)continue;
+   if((pre[c][hi]-pre[c][lo])/len>=C.LOCAL)continue;
+   n++}
+  if(n>=MINC)flag[i]=true}
+
+ const pops=[];
+ for(let i=0;i<N;i++){if(S[i].first)continue;
+  if(S[i].stripD>C.POP&&S[i].stripD>S[i].refD*C.POPR)pops.push(i)}
+ for(let k=0;k+1<pops.length;k++){
+  const a=pops[k],b=pops[k+1],gap=S[b].t-S[a].t;
+  if(gap<0.3||gap>15)continue;
+  let q=0,m=0;for(let i=a+1;i<b;i++){q+=S[i].stripD;m++}
+  if(m&&q/m>C.FREEZE*1.5)continue;
+  for(let i=a;i<b;i++)flag[i]=true}
+
+ const dil=flag.map((f,i)=>f||!!flag[i-1]||!!flag[i+1]);
+ const out=[];
+ for(let i=0;i<dil.length;i++){
+  if(!dil[i])continue;
+  const st=S[i].t;let j=i;
+  while(j+1<dil.length&&dil[j+1])j++;
+  const en=S[j].t+step;
+  if(en-st>=0.3)out.push({start:Math.max(0,st-0.15),end:Math.min(dur,en+0.15)});
+  i=j}
+
+ const tw=208,th=Math.max(8,Math.round(tw*vh/vw));
+ const tcv=document.createElement('canvas');tcv.width=tw;tcv.height=th;
+ const tctx=tcv.getContext('2d');
+ for(const r of out){
+  await seekTo(video,Math.min(Math.max(0,dur-0.05),(r.start+r.end)/2));
+  try{tctx.drawImage(video,0,0,tw,th);r.thumb=tcv.toDataURL('image/jpeg',0.6)}catch(e){r.thumb=''}}
+ return out;
+}finally{try{video.pause()}catch(e){}video.removeAttribute('src');URL.revokeObjectURL(url)}}
+
+function buildReview(srtText,ranges){
+const blocks=parseSRT(srtText);
+const items=[];
+blocks.forEach((b,i)=>{
+const p=b.time.split('-->');
+const s=srtTimeToSec(p[0]),e=srtTimeToSec(p[1]||p[0]);
+const hit=ranges.find(r=>r.start<e&&r.end>s);
+if(hit)items.push({i,s,e,text:b.text.replace(/\n/g,' '),thumb:hit.thumb||'',pos:'top'})});
+return items}
 
 function srtTimeToAss(t){
 return t.trim().replace(',','.').replace(/^(\d{2}):(\d{2}):(\d{2})\.(\d{3})$/,
 (m,h,mi,s,ms)=>`${h}:${mi}:${s}.${ms.substring(0,2)}`)}
 
-async function doBurn(videoFile,srtText,position,progressTextEl,progressDetailEl,progressEl,resultEl,previewEl){
+async function doBurn(videoFile,srtText,position,progressTextEl,progressDetailEl,progressEl,resultEl,previewEl,overrides){
 progressEl.classList.add('active');
 if(resultEl)resultEl.style.display='none';
 progressTextEl.textContent='FFmpeg 로딩 중...';
@@ -644,7 +861,7 @@ const videoData=new Uint8Array(await videoFile.arrayBuffer());
 await ffmpegInstance.writeFile('input.mp4',videoData);
 
 progressTextEl.textContent='자막 파일 준비 중...';
-const assContent=srtToAss(srtText,position);
+const assContent=srtToAss(srtText,position,overrides||{});
 const encoder=new TextEncoder();
 await ffmpegInstance.writeFile('subs.ass',encoder.encode(assContent));
 
@@ -684,24 +901,82 @@ document.getElementById('burnProgress').classList.remove('active');
 document.getElementById('burnBtn').disabled=false};
 
 let topBurnedVideoURL='';
+let rvState=null;
+
+function setBurnBtns(on){document.querySelectorAll('.btn-burn').forEach(b=>b.disabled=!on)}
+
 window.burnTopSubtitles=async function(langCode){
 if(!uploadedFile||!window.translationResults||!window.translationResults[langCode])return;
 const srt=window.translationResults[langCode];
-const position=document.getElementById('subPosition').value;
-document.querySelectorAll('.btn-burn').forEach(b=>b.disabled=true);
+const basePos=document.getElementById('subPosition').value;
+const sens=document.getElementById('detectSens').value;
+const isVideo=!!(uploadedFile.type&&uploadedFile.type.startsWith('video'));
+
+setBurnBtns(false);
+document.getElementById('review').classList.remove('active');
+
+let ranges=[];
+if(isVideo&&sens!=='off'){
+const sp=document.getElementById('scanProgress'),sd=document.getElementById('scanDetail');
+sd.textContent='0%';sp.classList.add('active');
 try{
-topBurnedVideoURL=await doBurn(uploadedFile,srt,position,
+ranges=await detectOverlayRanges(uploadedFile,sens,p=>{sd.textContent=Math.round(p*100)+'%'});
+}catch(e){
+showToast('구간 분석 실패 — 기본 위치로 진행합니다','error');
+}
+sp.classList.remove('active')}
+
+const items=buildReview(srt,ranges);
+if(!items.length){
+if(isVideo&&sens!=='off')showToast('하단 가림 구간 없음 — 기본 위치로 렌더링','success');
+return runBurn(langCode,srt,basePos,{})}
+
+rvState={langCode,srt,basePos,items};
+renderReview()};
+
+function renderReview(){
+const items=rvState.items;
+document.getElementById('rvCount').textContent=items.length+'개';
+const list=document.getElementById('rvList');list.innerHTML='';
+items.forEach((it,k)=>{
+const row=document.createElement('div');row.className='rv-row';
+const thumb=it.thumb?`<img class="rv-thumb" src="${it.thumb}" alt="">`:'<div class="rv-thumb"></div>';
+row.innerHTML=`${thumb}<div class="rv-meta"><div class="rv-time">${fmtT(it.s)} → ${fmtT(it.e)}</div><div class="rv-text">${escapeHtml(it.text)}</div></div><div class="rv-toggle"><button type="button" data-k="${k}" data-p="top" class="${it.pos==='top'?'on':''}">▲ 위</button><button type="button" data-k="${k}" data-p="bottom" class="${it.pos==='bottom'?'on':''}">▼ 아래</button></div>`;
+list.appendChild(row)});
+list.querySelectorAll('.rv-toggle button').forEach(b=>{
+b.onclick=()=>{
+rvState.items[+b.dataset.k].pos=b.dataset.p;
+b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b))}});
+const rv=document.getElementById('review');
+rv.classList.add('active');
+rv.scrollIntoView({behavior:'smooth',block:'nearest'});
+setBurnBtns(true)}
+
+document.getElementById('rvAllTop').onclick=()=>{
+if(!rvState)return;rvState.items.forEach(i=>i.pos='top');renderReview()};
+document.getElementById('rvAllBottom').onclick=()=>{
+if(!rvState)return;rvState.items.forEach(i=>i.pos='bottom');renderReview()};
+document.getElementById('rvConfirm').onclick=()=>{
+if(!rvState)return;
+const ov={};rvState.items.forEach(i=>{ov[i.i]=i.pos});
+document.getElementById('review').classList.remove('active');
+runBurn(rvState.langCode,rvState.srt,rvState.basePos,ov)};
+
+async function runBurn(langCode,srt,basePos,overrides){
+setBurnBtns(false);
+try{
+topBurnedVideoURL=await doBurn(uploadedFile,srt,basePos,
 document.getElementById('topBurnProgressText'),
 document.getElementById('topBurnProgressDetail'),
 document.getElementById('topBurnProgress'),
 document.getElementById('topBurnResult'),
-document.getElementById('topBurnPreview'));
+document.getElementById('topBurnPreview'),overrides);
 showToast('자막 입힌 영상 완성','success');
 }catch(e){
 showToast('영상 처리 오류: '+e.message,'error');
 document.getElementById('topBurnProgress').classList.remove('active');
 }
-document.querySelectorAll('.btn-burn').forEach(b=>b.disabled=false)};
+setBurnBtns(true)}
 
 window.dlBurnedVideo=function(){
 if(!burnedVideoURL)return;
