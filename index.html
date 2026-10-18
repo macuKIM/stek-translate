@@ -479,6 +479,9 @@ document.getElementById('goBtn').disabled=true;
 document.getElementById('progress').classList.add('active');
 document.getElementById('output').classList.remove('active');
 document.getElementById('outputGrid').innerHTML='';
+window.translationResults={};
+rvState=null;
+document.getElementById('review').classList.remove('active');
 
 let srt='';
 try{
@@ -516,7 +519,7 @@ renderOutput(target,result,true,LANGS[target])}
 document.getElementById('progress').classList.remove('active');
 document.getElementById('output').classList.add('active');
 document.getElementById('outputCount').textContent=`${done}개 언어 · SRT 형식`;
-window.translationResults=results;
+Object.assign(window.translationResults,results);
 showToast(`${done}개 언어 번역 완료`,'success');
 
 }catch(e){
