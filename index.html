@@ -96,6 +96,8 @@ select:focus{border-color:var(--accent)}
 .sub-pos span{font-size:13px;color:var(--text-muted);font-weight:500}
 .sub-pos span strong{color:var(--text);font-weight:600}
 .sub-pos select{flex:0 1 170px;max-width:180px}
+.btn-skip{padding:8px 14px;background:var(--surface3);color:var(--text-muted);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-skip:hover{border-color:var(--accent);color:var(--accent)}
 .rv{display:none;margin-top:12px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px}
 .rv.active{display:block}
 .rv-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
@@ -217,6 +219,7 @@ select:focus{border-color:var(--accent)}
 <div class="spinner"></div>
 <div class="progress-text">하단 스티커/이모티콘 구간 분석 중...</div>
 <div class="progress-detail" id="scanDetail">0%</div>
+<button class="btn-skip" id="scanSkip" style="margin-top:14px">분석 건너뛰고 바로 렌더링</button>
 </div>
 <div class="rv" id="review">
 <div class="rv-head">
@@ -669,6 +672,7 @@ ass+=`Dialogue: 0,${start},${end},Default,,0,0,${mv},,${tag}${text}\n`});
 return ass}
 
 // === Bottom-overlay (sticker/emoji) detection ===
+let scanAbort=false;
 // A sticker/emoji pasted over the video is FROZEN (its pixels never change) yet
 // DETAILED (outline/text => high spatial variance), while the footage behind it keeps
 // moving. Flat background areas are frozen but not detailed; letterbox bars and
@@ -708,6 +712,7 @@ function seekTo(v,t){return new Promise(res=>{let d=false,tm=null;
 async function contentBox(video,ctx,W,H,dur,C){
  const rM=new Float32Array(H),rS=new Float32Array(H),cM=new Float32Array(W),cS=new Float32Array(W);
  for(const f of [0.1,0.3,0.5,0.7,0.9]){
+  if(scanAbort)return{x:0,y:0,w:W,h:H};
   await seekTo(video,Math.min(f*dur,Math.max(0,dur-0.05)));
   let d; try{ctx.drawImage(video,0,0,W,H);d=ctx.getImageData(0,0,W,H).data}catch(e){continue}
   const L=lumaOf(d);
@@ -749,9 +754,10 @@ try{
  const y0=box.y+Math.round(box.h*0.62), sh=Math.max(6,box.y+box.h-y0);
  const ry0=box.y+Math.round(box.h*0.05), rsh=Math.max(6,Math.round(box.h*0.45));
 
- const step=Math.max(0.2,dur/400);
+ const step=Math.min(0.5,Math.max(0.25,dur/150));
  const S=[];let pS=null,pR=null;
  for(let t=0;t<dur;t+=step){
+  if(scanAbort)return[];
   await seekTo(video,Math.min(t,Math.max(0,dur-0.05)));
   try{ctx.drawImage(video,0,0,W,H)}catch(e){continue}
   let sd,rd; try{sd=ctx.getImageData(sx,y0,sw,sh).data;rd=ctx.getImageData(sx,ry0,sw,rsh).data}catch(e){break}
@@ -906,7 +912,8 @@ let rvState=null;
 function setBurnBtns(on){document.querySelectorAll('.btn-burn').forEach(b=>b.disabled=!on)}
 
 window.burnTopSubtitles=async function(langCode){
-if(!uploadedFile||!window.translationResults||!window.translationResults[langCode])return;
+if(!uploadedFile){showToast('영상을 다시 업로드해주세요 (파일이 해제된 상태입니다)','error');return}
+if(!window.translationResults||!window.translationResults[langCode]){showToast('자막 데이터를 찾지 못했습니다','error');return}
 const srt=window.translationResults[langCode];
 const basePos=document.getElementById('subPosition').value;
 const sens=document.getElementById('detectSens').value;
@@ -918,13 +925,21 @@ document.getElementById('review').classList.remove('active');
 let ranges=[];
 if(isVideo&&sens!=='off'){
 const sp=document.getElementById('scanProgress'),sd=document.getElementById('scanDetail');
-sd.textContent='0%';sp.classList.add('active');
+scanAbort=false;
+sd.textContent='준비 중...';sp.classList.add('active');
+// the button that was clicked can sit far below this panel, so bring it into view
+sp.scrollIntoView({behavior:'smooth',block:'center'});
+const t0=Date.now();
 try{
-ranges=await detectOverlayRanges(uploadedFile,sens,p=>{sd.textContent=Math.round(p*100)+'%'});
+ranges=await detectOverlayRanges(uploadedFile,sens,p=>{
+const el=Math.round((Date.now()-t0)/1000);
+const left=p>0.04?Math.max(0,Math.round(el/p-el)):null;
+sd.textContent=Math.round(p*100)+'%  ·  '+el+'초 경과'+(left!=null?'  ·  약 '+left+'초 남음':'')});
 }catch(e){
 showToast('구간 분석 실패 — 기본 위치로 진행합니다','error');
 }
-sp.classList.remove('active')}
+sp.classList.remove('active');
+if(scanAbort)ranges=[]}
 
 const items=buildReview(srt,ranges);
 if(!items.length){
@@ -949,8 +964,12 @@ rvState.items[+b.dataset.k].pos=b.dataset.p;
 b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b))}});
 const rv=document.getElementById('review');
 rv.classList.add('active');
-rv.scrollIntoView({behavior:'smooth',block:'nearest'});
+rv.scrollIntoView({behavior:'smooth',block:'center'});
 setBurnBtns(true)}
+
+document.getElementById('scanSkip').onclick=()=>{
+scanAbort=true;
+document.getElementById('scanDetail').textContent='건너뛰는 중...'};
 
 document.getElementById('rvAllTop').onclick=()=>{
 if(!rvState)return;rvState.items.forEach(i=>i.pos='top');renderReview()};
@@ -964,6 +983,7 @@ runBurn(rvState.langCode,rvState.srt,rvState.basePos,ov)};
 
 async function runBurn(langCode,srt,basePos,overrides){
 setBurnBtns(false);
+document.getElementById('topBurnProgress').scrollIntoView({behavior:'smooth',block:'center'});
 try{
 topBurnedVideoURL=await doBurn(uploadedFile,srt,basePos,
 document.getElementById('topBurnProgressText'),
